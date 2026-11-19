@@ -1,16 +1,20 @@
 #!/bin/bash
-# Print all URLs needed for the workshop
+# Print the URLs participants need for Part 7 (Open WebUI + MaaS).
+# Prints no secrets: you paste your own sk-oai-... API key into Open WebUI.
 NS="${NAMESPACE:-$(oc project -q 2>/dev/null)}"
+OWUI_HOST="$(oc get route open-webui -n "$NS" -o jsonpath='{.spec.host}' 2>/dev/null)"
+APPS_DOMAIN="${OWUI_HOST#*.}"
 echo ""
 echo "=== Workshop URLs for $NS ==="
 echo ""
-echo "OpenWebUI:"
-echo "  https://$(oc get route open-webui -n $NS -o jsonpath='{.spec.host}' 2>/dev/null)"
+echo "Open WebUI:"
+echo "  https://$OWUI_HOST"
 echo ""
-echo "Model URL (paste in OpenWebUI Connections > URL):"
-echo "  http://qwen3-4b-predictor.$NS.svc.cluster.local:8080/v1"
+echo "MaaS base URL (paste in Open WebUI > Connections > URL):"
+echo "  https://maas.$APPS_DOMAIN/v1"
 echo ""
-echo "Model Token (paste in OpenWebUI Connections > Bearer):"
-oc get secret -n $NS -o name 2>/dev/null | grep "token.*qwen3" | head -1 | xargs -I{} oc get {} -n $NS -o jsonpath='{.data.token}' 2>/dev/null | base64 -d 2>/dev/null
+echo "MaaS model ID:"
+echo "  publishers/$NS/models/gemma-4-e4b-it"
 echo ""
+echo "API key: create it in OpenShift AI > Gen AI studio > API keys (starts with sk-oai-)"
 echo ""

@@ -1,14 +1,14 @@
-# Red Hat OpenShift AI — Model Deployment Workshop
+# Red Hat OpenShift AI: Model Deployment and Models-as-a-Service Workshop
 
-A hands-on workshop (~2 hours) for deploying AI models on Red Hat OpenShift AI (RHOAI) 3.4, with LlamaStack and Open WebUI for chat and RAG — plus a live instructor demo of MCP tool calling via the AI Playground.
+A hands-on workshop (about 2 hours) on Red Hat OpenShift AI (RHOAI) 3.5. Participants create their own project, deploy gemma-4-E4B-it in it, try it in the AI Playground (chat, MCP tool calling, RAG), publish it as Models-as-a-Service (MaaS) with a subscription and an API key, and then connect Open WebUI to the MaaS endpoint.
 
 ## Quick Start
 
-Participants clone this repo in the OpenShift Web Terminal, then follow the guide:
+Participants follow the guide in the OpenShift AI dashboard first. In Part 7 they clone this repo in the OpenShift Web Terminal:
 
 ```bash
-git clone https://github.com/gymnatics/Red-Hat-Inference-Workshop.git
-cd Red-Hat-Inference-Workshop
+git clone -b rhoai-3.5-maas-workshop https://github.com/cbtham/Red-Hat-AI-Workshop.git
+cd Red-Hat-AI-Workshop
 ```
 
 See [RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md](RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md) for the full workshop guide.
@@ -17,33 +17,33 @@ See [RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md](RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md) for
 
 | File | Purpose |
 |------|---------|
-| `RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md` | Workshop guide (9 hands-on parts + instructor demos) |
-| `manifests/open-webui.yaml` | Open WebUI v0.9.0 (5 resources) |
-| `manifests/mcp-server.yaml` | Kubernetes MCP server (reference — used by instructor setup) |
-| `manifests/llamastack.yaml` | LlamaStack deployment (reference — not used in hands-on) |
-| `show-urls.sh` | Helper script that prints all URLs participants need |
-| `images/` | Screenshots for the guide |
+| `RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md` | Workshop guide (8 parts + instructor checklist in Appendix A) |
+| `manifests/open-webui.yaml` | Open WebUI v0.9.0, deployed by participants in Part 7 |
+| `samples/acme-handbook.txt` | Sample document for the RAG exercises |
+| `show-urls.sh` | Prints the Open WebUI URL, MaaS base URL and model ID for your project |
+| `manifests/instructor/` | Cluster setup used by the instructor (inference gateway, Web Terminal, shared OpenShift MCP Server, premium subscription placeholder) |
+| `manifests/mcp-server.yaml` | Per-project MCP server (reference only, not used in the current flow) |
+| `manifests/llamastack.yaml` | LlamaStack deployment (reference only, not used in the current flow) |
+| `images/` | Screenshots for the guide (`images/maas/` for the current flow) |
 
 ## Workshop Flow
 
-**Hands-on (Parts 1-9):** Participants deploy a model and Open WebUI — then test LLM chat and RAG.
-
-**Instructor Demos:** The instructor demonstrates MCP tool calling via the AI Playground and walks through observability dashboards.
+1. **Access** OpenShift AI and **create** your project `userN`
+2. **Deploy** gemma-4-E4B-it from your project's Deployments tab (LLM inference service, single node, `gpu-profile`, AI asset endpoint)
+3. **Playground:** chat, MCP tool calling with the OpenShift MCP Server, and RAG
+4. **Publish as MaaS:** edit the deployment and turn on MaaS
+5. **Subscriptions and API keys:** create `basic subscription userN` (10,000 tokens per minute) and an `sk-oai-` API key
+6. **Open WebUI:** connect to the MaaS endpoint with your API key, chat and RAG
+7. **Observability** (optional instructor demo)
 
 ## Tech Stack
 
-- RHOAI 3.4, OCP 4.20+
-- Qwen3-4B (vLLM with tool calling)
+- OpenShift 4.20+ and RHOAI 3.5.x with Models-as-a-Service (validated on OCP 4.22 and RHOAI 3.5.3)
+- gemma-4-E4B-it (`registry.redhat.io/rhai/modelcar-redhatai-gemma-4-e4b-it:3.0`) on vLLM with tool calling (`gemma4` parser)
+- LLM inference service (LLMInferenceService), one GPU per participant
 - Open WebUI v0.9.0
-- Kubernetes MCP Server (instructor demo)
+- OpenShift MCP Server (shared, set up by the instructor)
 
 ## Instructor Setup
 
-Use the [RHOAI Toolkit](https://github.com/gymnatics/RHOAI-Toolkit) for automated setup:
-
-```bash
-./rhoai-toolkit.sh
-# Select: Workshop Demo Setup > Complete Workshop Setup
-```
-
-This sets up the cluster, users, model, MCP server, and AI Playground — so the instructor can demo MCP tool calling live. See Appendix C of the workshop guide for manual setup steps.
+Follow **Appendix A: Instructor Setup Checklist** in the workshop guide. The [RHOAI Toolkit](https://github.com/gymnatics/RHOAI-Toolkit) can install the cluster; install it with RHCL and MaaS enabled.

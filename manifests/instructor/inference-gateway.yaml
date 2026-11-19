@@ -1,0 +1,66 @@
+# Inference gateway for llm-d (non-MaaS) deployments
+#
+# KServe routes every LLMInferenceService that is NOT published as MaaS through
+# the gateway openshift-ingress/openshift-ai-inference (see the
+# "kserveIngressGateway" key in the inferenceservice-config ConfigMap).
+# Without it, the dashboard's deploy wizard shows "No Gateways found" when
+# "Publish as MaaS" is unchecked.
+#
+# Resources created:
+#   - GatewayClass (openshift-default) — OpenShift's built-in Gateway API controller
+#   - Gateway (openshift-ai-inference) — HTTPS listener on inference.<apps domain>,
+#     reusing the wildcard ingress certificate already present in openshift-ingress
+#
+# Usage (cluster-admin):
+#   export APPS_DOMAIN=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
+#   sed "s/\${APPS_DOMAIN}/$APPS_DOMAIN/g" manifests/instructor/inference-gateway.yaml | oc apply -f -
+#
+# If your cluster's wildcard certificate secret has a different name, change
+# certificateRefs below (oc get secrets -n openshift-ingress | grep -i cert).
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: openshift-default
+spec:
+  controllerName: openshift.io/gateway-controller/v1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: openshift-ai-inference
+  namespace: openshift-ingress
+  labels:
+    istio.io/rev: openshift-gateway
+spec:
+  gatewayClassName: openshift-default
+  listeners:
+    - name: https
+      hostname: inference.${APPS_DOMAIN}
+      port: 443
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: cert-manager-ingress-cert
+    # In-cluster listener: the Playground (Llama Stack) calls the gateway via its
+    # Service name. Without a listener for that SNI the gateway resets the TLS
+    # handshake ("Connection reset by peer" / Server error in the Playground).
+    - name: https-internal
+      hostname: openshift-ai-inference-openshift-default.openshift-ingress.svc.cluster.local
+      port: 443
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: cert-manager-ingress-cert

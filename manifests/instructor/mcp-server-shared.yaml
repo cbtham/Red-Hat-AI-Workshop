@@ -1,0 +1,104 @@
+# Shared OpenShift MCP server for the AI Playground (instructor setup)
+#
+# One read-only MCP server for the whole workshop. It can view resources in
+# every namespace, so attendees can ask the model about pods, deployments
+# and events in their own project from the Playground's MCP tab.
+#
+# Resources created:
+#   - Namespace: workshop-mcp
+#   - ServiceAccount + ClusterRoleBinding (view, read-only)
+#   - Deployment + Service: the MCP server on port 8080 (path /mcp)
+#   - ConfigMap gen-ai-aa-mcp-servers in redhat-ods-applications:
+#     registers the server so it appears in Gen AI studio > AI asset endpoints
+#     > MCP servers and in the Playground's MCP tab
+#
+# Usage (cluster admin):
+#   oc apply -f manifests/instructor/mcp-server-shared.yaml
+#
+# Note: if gen-ai-aa-mcp-servers already exists with other entries, add the
+# OpenShift-MCP-Server key to it instead of replacing the ConfigMap.
+#
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-mcp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openshift-mcp-server
+  namespace: workshop-mcp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: openshift-mcp-server-view
+subjects:
+  - kind: ServiceAccount
+    name: openshift-mcp-server
+    namespace: workshop-mcp
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-mcp-server
+  namespace: workshop-mcp
+  labels:
+    app: openshift-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openshift-mcp-server
+  template:
+    metadata:
+      labels:
+        app: openshift-mcp-server
+    spec:
+      serviceAccountName: openshift-mcp-server
+      containers:
+        - name: server
+          image: quay.io/redhat-ai-services/kubernetes-mcp-server
+          args: ["--port=8080", "--read-only"]
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-mcp-server
+  namespace: workshop-mcp
+  labels:
+    app: openshift-mcp-server
+spec:
+  selector:
+    app: openshift-mcp-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gen-ai-aa-mcp-servers
+  namespace: redhat-ods-applications
+data:
+  OpenShift-MCP-Server: |
+    {
+      "url": "http://openshift-mcp-server.workshop-mcp.svc.cluster.local:8080/mcp",
+      "description": "Read-only OpenShift tools: list pods, deployments, events and resources in your project."
+    }

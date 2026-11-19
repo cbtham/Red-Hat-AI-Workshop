@@ -1,0 +1,17 @@
+# Web Terminal operator — gives every user an in-browser terminal (>_ icon)
+# in the OpenShift Console with oc, git and sed pre-installed.
+#
+# Usage (cluster admin):
+#   oc apply -f manifests/instructor/web-terminal-subscription.yaml
+#
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: web-terminal
+  namespace: openshift-operators
+spec:
+  channel: fast
+  name: web-terminal
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic

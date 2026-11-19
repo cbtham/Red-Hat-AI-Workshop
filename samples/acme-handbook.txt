@@ -1,0 +1,7 @@
+Acme Robotics Employee Handbook (excerpt)
+
+Remote work policy: Employees may work remotely up to 3 days per week. Fridays are designated "focus days" with no internal meetings.
+
+Hardware refresh: Laptops are replaced every 36 months. Request a refresh through the IT portal ticket category "HW-REFRESH".
+
+On-call: The platform team on-call rotation is 7 days long and hands over every Tuesday at 10:00 local time. On-call engineers receive a stipend of 150 USD per week.

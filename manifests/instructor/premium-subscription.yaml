@@ -1,0 +1,32 @@
+# "premium subscription" — instructor placeholder (MaaS)
+#
+# One shared, intentionally empty subscription so attendees can see that a
+# second tier exists next to their own "basic subscription userN".
+# A MaaSSubscription must list at least one model, so it points at a model
+# reference that does not exist. The subscription therefore shows as Failed
+# and cannot be selected when creating API keys. That is expected.
+#
+# To turn it into a real tier later, replace the placeholder modelRef with a
+# deployed MaaS model (name = model deployment name, namespace = its project).
+#
+# Usage (cluster admin, after MaaS is installed):
+#   oc apply -f manifests/instructor/premium-subscription.yaml
+#
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: premium-subscription
+  namespace: models-as-a-service
+  annotations:
+    openshift.io/display-name: premium subscription
+spec:
+  owner:
+    groups:
+      - name: rhods-admins
+  priority: 20
+  modelRefs:
+    - name: placeholder
+      namespace: workshop-mcp
+      tokenRateLimits:
+        - limit: 10000
+          window: 1s

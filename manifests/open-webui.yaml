@@ -1,7 +1,7 @@
 # Open WebUI — self-hosted chat interface (v0.9.0)
 #
 # Deploys Open WebUI in a participant's namespace for LLM chat and RAG.
-# Participants add their LlamaStack connection manually via the UI.
+# Participants add their model connection manually via the UI.
 #
 # Resources created (5 total):
 #   - ConfigMap (openwebui-config) — base configuration
@@ -11,7 +11,7 @@
 #   - Route (open-webui) — external HTTPS URL for your browser
 #
 # Usage:
-#   export NAMESPACE=user-XX
+#   export NAMESPACE=userN
 #   sed "s/\${NAMESPACE}/$NAMESPACE/g" manifests/open-webui.yaml | oc apply -f -
 #
 ---
