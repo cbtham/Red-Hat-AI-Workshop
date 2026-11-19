@@ -21,7 +21,7 @@ See [RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md](RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md) for
 | `manifests/open-webui.yaml` | Open WebUI v0.9.0, deployed by participants in Part 7 |
 | `samples/acme-handbook.txt` | Sample document for the RAG exercises |
 | `show-urls.sh` | Prints the Open WebUI URL, MaaS base URL and model ID for your project |
-| `manifests/instructor/` | Cluster setup used by the instructor (inference gateway, Web Terminal, shared OpenShift MCP Server, premium subscription placeholder, Open WebUI dashboard tiles) |
+| `manifests/instructor/` | Cluster setup used by the instructor (inference gateway, Web Terminal operator and per-attendee terminals, shared OpenShift MCP Server, premium subscription placeholder, Open WebUI dashboard tiles) |
 | `manifests/mcp-server.yaml` | Per-project MCP server (reference only, not used in the current flow) |
 | `manifests/llamastack.yaml` | LlamaStack deployment (reference only, not used in the current flow) |
 | `images/` | Screenshots for the guide (`images/maas/` for the current flow) |

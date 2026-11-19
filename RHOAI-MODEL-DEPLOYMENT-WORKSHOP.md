@@ -987,6 +987,14 @@ oc annotate hardwareprofile gpu-profile -n redhat-ods-applications --overwrite \
 oc apply -f manifests/instructor/web-terminal-subscription.yaml
 ```
 
+Optional: start a terminal for each attendee ahead of time, so **`>_`** opens straight to a prompt in Step 7.1 with no **Initialize terminal** step. Attendees are cluster admins, so their terminals live in `openshift-terminal`. The script creates each one as that attendee (impersonation), because the console finds a terminal by its creator's user ID. It also raises the idle timeout from 15m to 4h:
+
+```bash
+bash manifests/instructor/web-terminals.sh 20
+```
+
+A user ID exists only after the attendee's first login, so the script skips anyone who hasn't logged in yet. Run it again once everyone has logged in (Part 1). Attendees who already have a terminal are left alone. Remove the terminals after the workshop with `bash manifests/instructor/web-terminals.sh 20 delete`.
+
 ## 6. Shared OpenShift MCP Server
 
 One read-only MCP server for everyone, registered for the Playground's **MCP** tab as **OpenShift-MCP-Server**:
@@ -1005,6 +1013,8 @@ One **Open WebUI** tile per attendee, so they can open their Open WebUI from the
 ```bash
 bash manifests/instructor/open-webui-tiles.sh 20
 ```
+
+This is an instructor step, not an attendee step. The tiles live in the shared `redhat-ods-applications` namespace and change the dashboard for everyone. Even though attendees have cluster-admin, one wrong edit there would break the dashboard for the whole room.
 
 The dashboard shows the tiles within about 1 to 2 minutes. A tile's link works once that attendee has finished Step 7.4. Remove them after the workshop with `bash manifests/instructor/open-webui-tiles.sh 20 delete`.
 
