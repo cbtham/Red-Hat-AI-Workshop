@@ -24,10 +24,10 @@ your project ──deploy──▶ your model (1 GPU)
                               │
                               ├──▶ AI Playground   chat · MCP tools · RAG     (Part 4)
                               │
-                     edit: Publish as MaaS                                   (Part 5)
+                     Publish as MaaS + subscription                          (Part 5)
                               │
                               ▼
-                     MaaS gateway ◀── subscription + API key                (Part 6)
+                     MaaS gateway ◀── API key                                (Part 6)
                               │
                               └──▶ Open WebUI      chat · RAG                (Part 7)
 ```
@@ -40,8 +40,8 @@ your project ──deploy──▶ your model (1 GPU)
 | Part 2 | Create Your Project | Hands-on | ~5 min |
 | Part 3 | Deploy gemma-4-E4B-it | Hands-on | ~20 min |
 | Part 4 | Try the Model in the AI Playground (chat, MCP, RAG) | Hands-on | ~20 min |
-| Part 5 | Publish Your Model as MaaS | Hands-on | ~10 min |
-| Part 6 | Subscriptions and API Keys | Hands-on | ~15 min |
+| Part 5 | Publish Your Model as MaaS (edit the deployment, then create your subscription) | Hands-on | ~15 min |
+| Part 6 | API Keys and the Playground | Hands-on | ~10 min |
 | Part 7 | Connect Open WebUI to MaaS | Hands-on | ~25 min |
 | Part 8 | Observability | Optional demo | ~10 min |
 | Appendix A | Instructor Setup Checklist | Reference | -- |
@@ -184,8 +184,24 @@ The **Project** field already shows `userN`. Fill in the rest:
 | **Model deployment name** | `gemma-4-e4b-it` (all lowercase). You'll see this name again in Parts 5 to 7. |
 | **Deployment method** | **LLM inference service** (pre-selected). Leave it. *Inference service* can't be published as MaaS. |
 | **Hardware profile** | `gpu-profile` |
-| **Accelerator configuration** | **Manual selection** (pre-selected; *Automatic* is greyed out). Open the dropdown, type `Single Node` in its search box, and pick **vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig Single Node**. Careful: not the one ending in *Single Node P/D (Prefill/Decode)*. |
+| **Accelerator configuration** | **Manual selection** (pre-selected; *Automatic* is greyed out). Pick **vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig Single Node**. **Read the warning below first.** |
 | **Replica count** | `1` |
+
+> [!CAUTION]
+> **Most common mistake: pick `Single Node`, NOT `Single Node P/D`.**
+>
+> Open the **Accelerator configuration** dropdown and type `Single Node` in its search box. You get **two options with almost the same name**:
+>
+> | Option | |
+> |--------|---|
+> | vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig Single Node **P/D (Prefill/Decode)** | ❌ **Wrong.** Don't pick it |
+> | vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig **Single Node** | ✅ **Correct.** The name **ends** in `Single Node` |
+>
+> The wrong one is listed **first**, so read the **end** of the name before you click. If you pick P/D, the wizard creates a second `-prefill` pod that gets no GPU and crashes, and your model **never becomes Ready**. See [Troubleshooting](#model-never-ready-a--prefill-pod-keeps-crashing) if that happens.
+
+![Pick Single Node, not Single Node P/D](images/maas/05a-accelerator-single-node-vs-pd.jpg)
+
+After you pick it, the field shows the name ending in **Single Node**:
 
 ![gpu-profile and the Single Node accelerator configuration](images/maas/05-deploy-gpu-accelerator.jpg)
 
@@ -238,7 +254,7 @@ Check the summary:
 
 - **Model deployment name:** gemma-4-e4b-it
 - **Hardware profile:** gpu-profile
-- **Accelerator configuration:** vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig Single Node
+- **Accelerator configuration:** vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig Single Node (if it says **P/D (Prefill/Decode)**, click **Back** and fix it now)
 - **Replicas:** 1
 - **AI asset endpoint:** Yes, use case `chat`
 - **Token authentication:** No
@@ -397,7 +413,7 @@ Try a question the handbook can't answer, for example `What is Acme Robotics' pa
 
 ---
 
-# Part 5: Publish Your Model as MaaS (~10 min)
+# Part 5: Publish Your Model as MaaS (~15 min)
 
 So far your model is reachable only through your project's Playground and endpoints, with no access control. **Models-as-a-Service (MaaS)** turns a deployment into a governed service:
 
@@ -405,7 +421,18 @@ So far your model is reachable only through your project's Playground and endpoi
 - Access only with an **API key**
 - Each key belongs to a **subscription**, which decides **which models** it can use and **how many tokens per minute**
 
-You don't need to redeploy anything. You just edit the deployment.
+**How MaaS access works:**
+
+```
+API key (sk-oai-…)  ──belongs to──▶  subscription  ──lists──▶  models + token rate limit
+                                          │
+                                          └──owned by──▶ user groups
+```
+
+- A **subscription** lists models, a token limit for each model, and the groups allowed to use it
+- An **API key** is created for exactly **one subscription**. It can call only that subscription's models, within its limits
+
+Publishing takes two steps, one right after the other: turn on MaaS for your deployment (Step 5.1), then create a subscription that includes your model (Step 5.2). Your MaaS endpoint appears once both are done. You don't need to redeploy anything.
 
 ## Step 5.1: Edit the Deployment
 
@@ -420,48 +447,16 @@ The **Gateway** switches to `maas-default-gateway | openshift-ingress` automatic
 
 5. Click **"Next"**, check the review page (**MaaS endpoint: Yes**), then click **"Update deployment"**
 
-The model pods are **not restarted**. Only the route moves from the inference gateway to the MaaS gateway, so this takes seconds.
+The model pods are **not restarted**. Only the route moves from the inference gateway to the MaaS gateway, so this takes seconds. Go straight on to Step 5.2.
 
-## Step 5.2: What Changed?
+## Step 5.2: Create Your Basic Subscription
 
-Go back to **Gen AI studio > AI asset endpoints**. For now you still see **one row**, `gemma-4-e4b-it` with use case `chat`. A MaaS model only becomes usable once a subscription includes it, so its row appears after you create your subscription in Step 6.1. You'll then see **two rows**, both named `gemma-4-e4b-it`:
-
-| Row | Use Case | What It Is |
-|-----|----------|-----------|
-| `gemma-4-e4b-it` | `chat` | The original AI asset entry. It still points at the **old** URL, which now returns **404** because the route moved |
-| `gemma-4-e4b-it`, with `publishers/userN/models/gemma-4-e4b-it` underneath | `LLM` | The MaaS entry. This is the one to use from now on |
-
-![AI asset endpoints after Step 6.1](images/maas/23c-asset-endpoints-maas.jpg)
-
-Nothing was deleted. The dashboard simply lists the model once as a project AI asset and once as a MaaS model. The MaaS row has its own **Endpoints** dialog with the shared MaaS URL and a subscription picker.
-
-> The Playground you created in Part 4 still points at the old URL, so it stops answering. You'll reconnect it through MaaS in Step 6.4.
-
-If you call the MaaS URL now without a key, you get **401 Unauthorized**. You need a subscription and an API key. That's Part 6.
-
----
-
-# Part 6: Subscriptions and API Keys (~15 min)
-
-**How MaaS access works:**
-
-```
-API key (sk-oai-…)  ──belongs to──▶  subscription  ──lists──▶  models + token rate limit
-                                          │
-                                          └──owned by──▶ user groups
-```
-
-- A **subscription** lists models, a token limit for each model, and the groups allowed to use it
-- An **API key** is created for exactly **one subscription**. It can call only that subscription's models, within its limits
-
-In this workshop, your instructor has already created one shared **premium subscription** as a placeholder, to show that several tiers can exist. It is intentionally empty (no models), so it shows a **Failed** status and you can't create keys for it. You'll create your own **basic subscription userN**.
-
-## Step 6.1: Create Your Basic Subscription
+Your instructor has already created one shared **premium subscription** as a placeholder, to show that several tiers can exist. It is intentionally empty (no models), so it shows a **Failed** status and you can't create keys for it. You'll create your own **basic subscription userN**.
 
 1. Go to **Settings > MaaS governance** (the last item under **Settings** in the left menu)
 2. Open the **Subscriptions** tab and click **"Create subscription"**
 
-![MaaS governance](images/maas/20-maas-governance-empty.jpg)
+![MaaS governance: Settings > MaaS governance, then Create subscription](images/maas/20-maas-governance-empty.jpg)
 
 3. Fill in the form:
 
@@ -472,7 +467,7 @@ In this workshop, your instructor has already created one shared **premium subsc
    | **Priority** | `10` (the form starts at `0`; higher numbers take precedence when you belong to more than one subscription) |
    | **Groups** | `rhods-admins` |
 
-4. Under **Models**, click **"Add models"**. In the dialog, click **"Add model"** in the row for **your** model (project `userN`, model ID `gemma-4-e4b-it`), then click **"Add models"**
+4. Under **Models**, click **"Add models"**. In the dialog, click **"Add model"** in the row for **your** model (project `userN`, model ID `gemma-4-e4b-it`), then click **"Add models"**. The dialog lists only models published as MaaS: if yours is missing, go back to Step 5.1 and check that it saved
 
 ![Add your model to the subscription](images/maas/21-sub-add-models.jpg)
 
@@ -492,7 +487,32 @@ Your subscription appears in the list with status **Ready**. The instructor's `p
 
 > **Heads-up:** in this workshop all attendees are in the same group (`rhods-admins`), so you can see everyone's subscriptions in dropdowns. Always pick **your own** `basic subscription userN`.
 
-## Step 6.2: Look at the MaaS Endpoint
+## Step 5.3: What Changed?
+
+Go to **Gen AI studio > AI asset endpoints** (project `userN`). Within about a minute of creating your subscription, it shows **two rows**, both named `gemma-4-e4b-it`:
+
+| Row | Use Case | What It Is |
+|-----|----------|-----------|
+| `gemma-4-e4b-it` | `chat` | The original AI asset entry. It still points at the **old** URL, which now returns **404** because the route moved |
+| `gemma-4-e4b-it`, with `publishers/userN/models/gemma-4-e4b-it` underneath | `LLM` | The MaaS entry. This is the one to use from now on |
+
+![AI asset endpoints with the MaaS row](images/maas/23c-asset-endpoints-maas.jpg)
+
+No **LLM** row after 2 minutes? Check that your subscription says **Ready** and lists **your** model (project `userN`), then reload the page.
+
+Nothing was deleted. The dashboard simply lists the model once as a project AI asset and once as a MaaS model. The MaaS row has its own **Endpoints** dialog with the shared MaaS URL and a subscription picker.
+
+> The Playground you created in Part 4 still points at the old URL, so it stops answering. You'll reconnect it through MaaS in Step 6.3.
+
+If you call the MaaS URL now without a key, you get **401 Unauthorized**. You need an API key. That's Part 6.
+
+---
+
+# Part 6: API Keys and the Playground (~10 min)
+
+Your model is published and in your subscription. Now look at its MaaS endpoint, create an API key for it, and use it from the Playground.
+
+## Step 6.1: Look at the MaaS Endpoint
 
 1. Go to **Gen AI studio > AI asset endpoints** (project `userN`)
 2. In the row with use case **LLM** (`publishers/userN/models/gemma-4-e4b-it` underneath the name), click **View** in the **Endpoints** column
@@ -509,7 +529,7 @@ You see:
 
 Click **"Close"**. For Open WebUI, you'll create a proper key.
 
-## Step 6.3: Create an API Key
+## Step 6.2: Create an API Key
 
 1. Go to **Gen AI studio > API keys**
 2. Click **"Create API key"**
@@ -533,7 +553,7 @@ Click **"Close"**. For Open WebUI, you'll create a proper key.
 
 > Lost the key? You can't display it again. Delete it on the **API keys** page and create a new one.
 
-## Step 6.4: Use MaaS from the Playground
+## Step 6.3: Use MaaS from the Playground
 
 Reconnect the Playground through MaaS, the same way other applications will reach the model:
 
@@ -555,7 +575,7 @@ Reconnect the Playground through MaaS, the same way other applications will reac
 
 The Playground now calls your model through the MaaS gateway, with your subscription and its token limit.
 
-## Step 6.5 (Optional): Call MaaS from the Command Line
+## Step 6.4 (Optional): Call MaaS from the Command Line
 
 Any OpenAI-compatible client can now use your model. In the Web Terminal (see Step 7.1), try:
 
@@ -664,7 +684,7 @@ Open the URL in a new browser tab. Authentication is disabled for the workshop, 
 
 ## Step 7.6: Add the MaaS Connection with Your API Key
 
-First, get the MaaS base URL for Open WebUI. It's the MaaS endpoint from Step 6.2 plus `/v1`:
+First, get the MaaS base URL for Open WebUI. It's the MaaS endpoint from Step 6.1 plus `/v1`:
 
 ```bash
 echo "https://maas.$(oc get route open-webui -n $NAMESPACE -o jsonpath='{.spec.host}' | cut -d. -f2-)/v1"
@@ -682,7 +702,7 @@ Now, in Open WebUI:
    | Field | Value |
    |-------|-------|
    | **URL** | `https://maas.apps.<cluster-domain>/v1` |
-   | **Auth** | `Bearer`, then paste your **`sk-oai-` API key** from Step 6.3 into the field next to it |
+   | **Auth** | `Bearer`, then paste your **`sk-oai-` API key** from Step 6.2 into the field next to it |
    | **Model IDs** | leave empty (Open WebUI lists every model your key can use) |
 
 ![Add Connection](images/maas/30-owui-add-connection.jpg)
@@ -801,13 +821,42 @@ You've completed the hands-on part of the workshop.
    - **CUDA out of memory:** edit the deployment and change `--max-model-len=16384` to `--max-model-len=8192`
    - **Wrong hardware profile:** make sure you selected `gpu-profile`
 
+## Model never Ready: a `-prefill` pod keeps crashing
+
+**Cause:** in Step 3.4 you picked the accelerator configuration ending in **Single Node P/D (Prefill/Decode)** instead of the one ending in **Single Node**. You can recognise it from the pods:
+
+```bash
+oc get pods -n userN
+```
+
+A pod named `gemma-4-e4b-it-kserve-prefill-…` is in **CrashLoopBackOff**, and its log ends with `RuntimeError: Failed to infer device type`. The prefill pod gets no GPU, so it can't start.
+
+**Fix:** the quickest reliable fix is to delete the deployment and deploy again:
+
+1. **Projects > userN > Deployments**, kebab menu (⋮) on `gemma-4-e4b-it` > **Delete**, then confirm
+2. Repeat Part 3. In Step 3.4 pick the option whose name **ends** in **Single Node** (see the screenshot there), and check it again on the review page
+
+Stuck? Ask your instructor, who can also fix it in place.
+
 ## "No Gateways found" in the deploy wizard
 
 The inference gateway for non-MaaS deployments is missing. Ask your instructor (see Appendix A, step 3).
 
+## No MaaS (LLM) row, or no MaaS model to add to the Playground
+
+**Cause:** you published the model as MaaS (Step 5.1) but haven't created your subscription yet, or it doesn't include your model. MaaS lists a model only once a subscription includes it.
+
+**Fix:** do **[Step 5.2](#step-52-create-your-basic-subscription)**. Then check:
+
+- **Settings > MaaS governance > Subscriptions** shows `basic subscription userN` with status **Ready**
+- Its **Models** column shows 1. Click the subscription and check that the model is **yours** (project `userN`), not another attendee's
+- In the deployment's review page (kebab menu ⋮ > **Edit**, click **Next** to the end), **MaaS endpoint** says **Yes**
+
+Then reload **Gen AI studio > AI asset endpoints**. The **LLM** row shows up within about a minute.
+
 ## Playground: "Server error" or no answer after Part 5
 
-The original Playground entry still points at the old URL, which returns 404 after publishing as MaaS. Follow **Step 6.4** to add the MaaS row to the Playground.
+The original Playground entry still points at the old URL, which returns 404 after publishing as MaaS. Finish Part 5 (publish **and** subscription), then follow **Step 6.3** to add the MaaS row to the Playground.
 
 ## Playground: RAG ignores the document
 
@@ -1064,7 +1113,7 @@ Then clean up the test user, in this order:
 ## Known limitations (RHOAI 3.5.3)
 
 - **Token authentication and the Playground:** a deployment with **Require token authentication** can't be used from the Playground. That's why Part 3 leaves it off and Parts 5 and 6 secure the model with MaaS instead
-- **Two AI asset rows after publishing as MaaS:** the original row keeps pointing at the old URL (404). Attendees re-add the MaaS row to the Playground (Step 6.4)
+- **Two AI asset rows after publishing as MaaS:** the original row keeps pointing at the old URL (404). Attendees re-add the MaaS row to the Playground (Step 6.3)
 - **Empty subscriptions** (like the premium placeholder) show as **Failed**
 
 ## Workshop Credentials Template

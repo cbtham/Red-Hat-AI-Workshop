@@ -31,8 +31,8 @@ See [RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md](RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md) for
 1. **Access** OpenShift AI and **create** your project `userN`
 2. **Deploy** gemma-4-E4B-it from your project's Deployments tab (LLM inference service, single node, `gpu-profile`, AI asset endpoint)
 3. **Playground:** chat, MCP tool calling with the OpenShift MCP Server, and RAG
-4. **Publish as MaaS:** edit the deployment and turn on MaaS
-5. **Subscriptions and API keys:** create `basic subscription userN` (10,000 tokens per minute) and an `sk-oai-` API key
+4. **Publish as MaaS:** edit the deployment to turn on MaaS, then create `basic subscription userN` (10,000 tokens per minute) for your model
+5. **API keys and the Playground:** create an `sk-oai-` API key and reconnect the Playground through MaaS
 6. **Open WebUI:** connect to the MaaS endpoint with your API key, chat and RAG
 7. **Observability** (optional instructor demo)
 
