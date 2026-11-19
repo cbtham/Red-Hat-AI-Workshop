@@ -11,7 +11,7 @@
 #   - Route (open-webui) — external HTTPS URL for your browser
 #
 # Usage:
-#   export NAMESPACE=userN
+#   export NAMESPACE=$(oc whoami)   # or userN
 #   sed "s/\${NAMESPACE}/$NAMESPACE/g" manifests/open-webui.yaml | oc apply -f -
 #
 ---

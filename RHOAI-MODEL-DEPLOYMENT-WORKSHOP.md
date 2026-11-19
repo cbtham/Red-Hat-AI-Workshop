@@ -424,12 +424,14 @@ The model pods are **not restarted**. Only the route moves from the inference ga
 
 ## Step 5.2: What Changed?
 
-Go back to **Gen AI studio > AI asset endpoints**. Your deployment now shows **two rows**:
+Go back to **Gen AI studio > AI asset endpoints**. For now you still see **one row**, `gemma-4-e4b-it` with use case `chat`. A MaaS model only becomes usable once a subscription includes it, so its row appears after you create your subscription in Step 6.1. You'll then see **two rows**, both named `gemma-4-e4b-it`:
 
-| Row | Badge | What It Is |
-|-----|-------|-----------|
-| `gemma-4-e4b-it` (use case `chat`) | — | The original AI asset entry. It still points at the **old** URL, which now returns **404** because the route moved |
-| `publishers/userN/models/gemma-4-e4b-it` | **Model as a Service** | The MaaS entry. This is the one to use from now on |
+| Row | Use Case | What It Is |
+|-----|----------|-----------|
+| `gemma-4-e4b-it` | `chat` | The original AI asset entry. It still points at the **old** URL, which now returns **404** because the route moved |
+| `gemma-4-e4b-it`, with `publishers/userN/models/gemma-4-e4b-it` underneath | `LLM` | The MaaS entry. This is the one to use from now on |
+
+![AI asset endpoints after Step 6.1](images/maas/23c-asset-endpoints-maas.jpg)
 
 Nothing was deleted. The dashboard simply lists the model once as a project AI asset and once as a MaaS model. The MaaS row has its own **Endpoints** dialog with the shared MaaS URL and a subscription picker.
 
@@ -456,7 +458,7 @@ In this workshop, your instructor has already created one shared **premium subsc
 
 ## Step 6.1: Create Your Basic Subscription
 
-1. Go to **Settings > MaaS governance**
+1. Go to **Settings > MaaS governance** (the last item under **Settings** in the left menu)
 2. Open the **Subscriptions** tab and click **"Create subscription"**
 
 ![MaaS governance](images/maas/20-maas-governance-empty.jpg)
@@ -493,7 +495,7 @@ Your subscription appears in the list with status **Ready**. The instructor's `p
 ## Step 6.2: Look at the MaaS Endpoint
 
 1. Go to **Gen AI studio > AI asset endpoints** (project `userN`)
-2. In the **Model as a Service** row, click **View** in the **Endpoints** column
+2. In the row with use case **LLM** (`publishers/userN/models/gemma-4-e4b-it` underneath the name), click **View** in the **Endpoints** column
 
 ![MaaS endpoint](images/maas/24-maas-endpoint.jpg)
 
@@ -517,15 +519,17 @@ Click **"Close"**. For Open WebUI, you'll create a proper key.
    |-------|---------------|
    | **Name** | `openwebui-userN` |
    | **Description** | `Key for Open WebUI` (optional) |
-   | **Subscription** | `basic subscription userN` |
-   | **Expiration** | a date after the workshop, for example tomorrow |
+   | **Subscription** | start typing `basic`, then pick **your own** `basic subscription userN` |
+   | **Expiration** | keep the default (1 day). It lasts past the end of the workshop |
 
    The **Models** list confirms which models the key can use, and their token limits.
 
 ![Create API key](images/maas/26-create-api-key.jpg)
 
 4. Click **"Create API key"**
-5. **Copy the key now.** It starts with `sk-oai-` and is **shown only once**. Paste it somewhere safe, such as a local text file; you'll need it in Part 7
+5. **Copy the key now.** It starts with `sk-oai-` and is **shown only once**. Click the **copy icon** next to the key, then paste it somewhere safe, such as a local text file; you'll need it in Part 7. Then click **"Close"**
+
+![API key created](images/maas/26b-api-key-created.jpg)
 
 > Lost the key? You can't display it again. Delete it on the **API keys** page and create a new one.
 
@@ -534,13 +538,18 @@ Click **"Close"**. For Open WebUI, you'll create a proper key.
 Reconnect the Playground through MaaS, the same way other applications will reach the model:
 
 1. Go to **Gen AI studio > AI asset endpoints** (project `userN`)
-2. In the **Model as a Service** row (`publishers/userN/models/gemma-4-e4b-it`), click **"Add to playground"**
+2. In the row with use case **LLM** (`publishers/userN/models/gemma-4-e4b-it` underneath the name), click **"Add to playground"**
 3. In **Configure playground**, both rows are named `gemma-4-e4b-it`. Keep the row with use case **LLM** (the MaaS one) checked and **uncheck** the row with use case **chat** (the old endpoint)
-4. Click **"Configure"**. The Playground restarts with the new model, which takes about a minute
-5. Open **Gen AI studio > Playground**, click **Settings**, and on the **Model** tab:
+
+![Configure playground with the MaaS model](images/maas/26c-configure-playground-maas.jpg)
+
+4. Click **"Configure"**. The Playground is re-created with the new model, which takes about a minute. When you see **"Playground created"**, click **"Go to playground"**
+5. Click **Settings**. On the **Model** tab, the fields are already filled in. Check them:
    - **Model:** the `maas-vllm-inference-1/publishers/userN/models/…` entry
    - **Subscription:** `basic subscription userN`
 6. Ask a question, for example `In one sentence, what is Models-as-a-Service?`
+
+> The re-created Playground starts empty: the document you uploaded for RAG in Step 4.5 is gone. Upload it again if you want to repeat the RAG test through MaaS.
 
 ![Playground through MaaS](images/maas/27-playground-maas.jpg)
 
@@ -584,7 +593,11 @@ You (browser) ──▶ Open WebUI ──(sk-oai- key)──▶ MaaS gateway ─
 
 ## Step 7.1: Open the Web Terminal
 
-Switch to the **OpenShift Console** (grid icon > **OpenShift Console**). Click the **`>_`** icon in the top-right masthead to open the Web Terminal. It comes with `oc`, `git` and `sed`, so you don't need any local tools.
+Switch to the **OpenShift Console** (grid icon > **OpenShift Console**). If it asks you to log in, use the same `userN` as the dashboard. If a **Welcome** dialog offers a tour, click **Skip tour**.
+
+Click the **`>_`** icon in the top-right masthead to open the Web Terminal. The first time, it shows **Initialize terminal**: click **Start** (if it asks for a project, pick `userN`). The terminal takes about 15 seconds to start. It comes with `oc`, `git` and `sed`, so you don't need any local tools.
+
+> **New to the terminal?** You only need to copy and paste. Hover over each command block in this guide and click its copy icon. Click inside the terminal and paste with **Ctrl+Shift+V** (Windows/Linux) or **Cmd+V** (Mac), or right-click > **Paste**. Then press **Enter**. Run one block at a time and wait for the prompt (`$`) to come back before the next one.
 
 ## Step 7.2: Clone the Workshop Repository
 
@@ -598,9 +611,17 @@ cd Red-Hat-AI-Workshop
 
 ## Step 7.3: Set Your Namespace
 
+Your project has the same name as your user, so the terminal can fill it in for you. The next commands use it to deploy into your project.
+
 ```bash
-export NAMESPACE=userN
+export NAMESPACE=$(oc whoami)
 ```
+
+```bash
+echo $NAMESPACE
+```
+
+It should print your own user, for example `user1`. If it doesn't, type it yourself, for example `export NAMESPACE=user1`.
 
 ## Step 7.4: Deploy Open WebUI
 
@@ -621,15 +642,25 @@ Wait for it to start:
 oc rollout status deployment/open-webui -n $NAMESPACE --timeout=180s
 ```
 
+It takes about a minute. You should see five lines ending in `created`, then `successfully rolled out`:
+
+![Deploy Open WebUI in the Web Terminal](images/maas/29-terminal-deploy-owui.jpg)
+
 ## Step 7.5: Open Open WebUI
 
-Get its URL:
+In the OpenShift AI dashboard, go to **Applications > Enabled**. Find the **Open WebUI** tile whose description starts with **your** `userN:` (everyone's tiles are listed) and click **Open application**:
+
+![Open WebUI tile in Applications > Enabled](images/maas/34-enabled-open-webui-tile.jpg)
+
+Or get the URL in the terminal:
 
 ```bash
 echo "https://$(oc get route open-webui -n $NAMESPACE -o jsonpath='{.spec.host}')"
 ```
 
 Open the URL in a new browser tab. Authentication is disabled for the workshop, so you go straight to the chat page. If a **What's New** dialog appears, click **"Okay, Let's Go!"**.
+
+> **Open only your own Open WebUI.** Without a login, anyone who opens your URL can chat with your API key, and everything you configure there is shared. Don't upload anything confidential.
 
 ## Step 7.6: Add the MaaS Connection with Your API Key
 
@@ -645,19 +676,21 @@ Now, in Open WebUI:
 
 1. Click the **profile icon** (bottom-left corner), then **"Admin Panel"**
 2. Click **"Settings"**, then **"Connections"**
-3. Next to **OpenAI API**, click **"+"** (Add Connection)
+3. Under **OpenAI API**, on the **"Manage OpenAI API Connections"** row, click **"+"** (Add Connection) at the far right
 4. Fill in:
 
    | Field | Value |
    |-------|-------|
    | **URL** | `https://maas.apps.<cluster-domain>/v1` |
-   | **Auth** | `Bearer`, then paste your **`sk-oai-` API key** from Step 6.3 |
+   | **Auth** | `Bearer`, then paste your **`sk-oai-` API key** from Step 6.3 into the field next to it |
    | **Model IDs** | leave empty (Open WebUI lists every model your key can use) |
 
 ![Add Connection](images/maas/30-owui-add-connection.jpg)
 
 5. Click the **Verify** icon (circular arrows) next to the URL. You should see **"Server connection verified"**
+   - **"OpenAI: Network Problem"** usually means the key is wrong or empty, not the network. Copy the key again (click the eye icon to check it starts with `sk-oai-`), paste it, and verify again
 6. Click **"Save"** in the dialog, then **"Save"** at the bottom right of the page
+7. Open WebUI comes with a connection to `https://api.openai.com/v1` that has no key. Turn its toggle **off** and click **"Save"** again, so only your MaaS connection is used
 
 That's all it takes to plug an application into MaaS: a base URL and an API key.
 
@@ -667,8 +700,8 @@ Open WebUI shows the model by its MaaS ID, `publishers/userN/models/gemma-4-e4b-
 
 1. In **Admin Panel > Settings**, click **"Models"**
 2. Click the **pencil icon** next to `publishers/userN/models/gemma-4-e4b-it`
-3. Change the **name** to `redhataigemma4`
-4. Click **"Save & Update"**
+3. Click the large model name at the top and replace it with `redhataigemma4`
+4. Scroll to the bottom of the page and click **"Save & Update"**. You should see **"Model updated successfully"**
 
 ![Rename the model](images/maas/32-owui-rename-model.jpg)
 
@@ -676,8 +709,8 @@ This changes only what Open WebUI displays. Requests still go to MaaS with the f
 
 ## Step 7.8: Chat
 
-1. Click **"New Chat"** (top left)
-2. Select **`redhataigemma4`** in the model dropdown
+1. Click **"New Chat"** (the pencil-and-paper icon at the top of the left sidebar)
+2. Check that **`redhataigemma4`** is selected at the top left. It's your only model, so it's usually already selected
 3. Try:
 
 ```
@@ -789,6 +822,7 @@ Turn **off** the OpenShift-MCP-Server on the **MCP** tab. With tools enabled, th
 ## MaaS returns 401 Unauthorized
 
 - The API key is missing, mistyped, expired or deleted. Create a new one in **Gen AI studio > API keys**
+- In Open WebUI, a 401 shows up as **"OpenAI: Network Problem"** when you click **Verify**. Paste the key again
 - The header must be `Authorization: Bearer sk-oai-…`
 
 ## MaaS returns 429, or Open WebUI shows an empty answer
@@ -831,7 +865,7 @@ Raise your hand! The instructors are here to help.
 
 ```bash
 # Set your namespace
-export NAMESPACE=userN
+export NAMESPACE=$(oc whoami)
 
 # Check your login and project
 oc whoami
@@ -964,6 +998,18 @@ oc get pods -n workshop-mcp
 
 If the ConfigMap `gen-ai-aa-mcp-servers` in `redhat-ods-applications` already has other entries, add the `OpenShift-MCP-Server` key instead of replacing the ConfigMap.
 
+## 6a. Open WebUI tiles in Applications > Enabled
+
+One **Open WebUI** tile per attendee, so they can open their Open WebUI from the dashboard in Step 7.5. Each tile links to `https://open-webui-userN.<apps domain>`. Its description starts with `userN:`, because every tile is visible to every user. Pass the number of attendees:
+
+```bash
+bash manifests/instructor/open-webui-tiles.sh 20
+```
+
+The dashboard shows the tiles within about 1 to 2 minutes. A tile's link works once that attendee has finished Step 7.4. Remove them after the workshop with `bash manifests/instructor/open-webui-tiles.sh 20 delete`.
+
+This follows Red Hat's [Adding an application to the dashboard](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/managing_openshift_ai/managing-applications-that-show-in-the-dashboard). It uses an `OdhApplication` with `spec.enable.validationConfigMap`, and the script creates that ConfigMap with `validation_result: "true"`, so attendees don't need to click **Enable** on the Explore page. The script sets `spec.endpoint` instead of `route`/`routeNamespace`: in RHOAI 3.5.3 the dashboard looks up `route` in its own namespace first. The default `spec.dashboardConfig.enablement: true` is required.
+
 ## 7. "premium subscription" placeholder
 
 One shared, intentionally empty subscription. It shows as **Failed** and can't be used for keys. That is expected; it only shows attendees that more tiers can exist:
@@ -993,7 +1039,17 @@ As a test user, walk through Parts 3 to 7 once:
 - Publish as MaaS, create a subscription and a key, and re-add the Playground through MaaS
 - Deploy Open WebUI, connect it with the key, chat and RAG
 
-Then delete the test user's project, subscription and API key.
+Then clean up the test user, in this order:
+
+1. **API keys:** signed in as the test user, delete them on **Gen AI studio > API keys** (kebab menu ⋮). Do this first: a key that is left behind becomes usable again if an attendee later creates a subscription with the same name
+2. **Subscription and its authorization policy:**
+
+   ```bash
+   oc delete maassubscription basic-subscription-user1 -n models-as-a-service
+   oc delete maasauthpolicy basic-subscription-user1-policy -n models-as-a-service --ignore-not-found
+   ```
+
+3. **Project** (model, Playground and Open WebUI): `oc delete project user1`
 
 ## Known limitations (RHOAI 3.5.3)
 
