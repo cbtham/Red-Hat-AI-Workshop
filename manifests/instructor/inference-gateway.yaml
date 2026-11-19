@@ -11,12 +11,15 @@
 #   - Gateway (openshift-ai-inference) — HTTPS listener on inference.<apps domain>,
 #     reusing the wildcard ingress certificate already present in openshift-ingress
 #
-# Usage (cluster-admin):
+# setup-workshop.sh applies this for you. To apply it by hand (cluster-admin):
 #   export APPS_DOMAIN=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
-#   sed "s/\${APPS_DOMAIN}/$APPS_DOMAIN/g" manifests/instructor/inference-gateway.yaml | oc apply -f -
+#   export CERT_SECRET=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.spec.defaultCertificate.name}')
+#   sed -e "s/\${APPS_DOMAIN}/$APPS_DOMAIN/g" -e "s/\${CERT_SECRET}/${CERT_SECRET:-router-certs-default}/g" \
+#     manifests/instructor/inference-gateway.yaml | oc apply -f -
 #
-# If your cluster's wildcard certificate secret has a different name, change
-# certificateRefs below (oc get secrets -n openshift-ingress | grep -i cert).
+# CERT_SECRET is the wildcard certificate the cluster's router already uses
+# (a secret in openshift-ingress). Clusters without a custom certificate use
+# router-certs-default.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
@@ -47,7 +50,7 @@ spec:
         certificateRefs:
           - group: ""
             kind: Secret
-            name: cert-manager-ingress-cert
+            name: ${CERT_SECRET}
     # In-cluster listener: the Playground (Llama Stack) calls the gateway via its
     # Service name. Without a listener for that SNI the gateway resets the TLS
     # handshake ("Connection reset by peer" / Server error in the Playground).
@@ -63,4 +66,4 @@ spec:
         certificateRefs:
           - group: ""
             kind: Secret
-            name: cert-manager-ingress-cert
+            name: ${CERT_SECRET}

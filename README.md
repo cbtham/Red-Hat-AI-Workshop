@@ -18,10 +18,12 @@ See [RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md](RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md) for
 | File | Purpose |
 |------|---------|
 | `RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md` | Workshop guide (8 parts + instructor checklist in Appendix A) |
+| `ENVIRONMENT-SETUP.md` | Instructor guide: order the RHDP cluster, size it for your number of attendees, run the setup script, dry run, clean up |
 | `manifests/open-webui.yaml` | Open WebUI v0.9.0, deployed by participants in Part 7 |
 | `samples/acme-handbook.txt` | Sample document for the RAG exercises |
 | `show-urls.sh` | Prints the Open WebUI URL, MaaS base URL and model ID for your project |
-| `manifests/instructor/` | Cluster setup used by the instructor (inference gateway, Web Terminal operator and per-attendee terminals, shared OpenShift MCP Server, premium subscription placeholder, Open WebUI dashboard tiles) |
+| `manifests/instructor/setup-workshop.sh` | One-command cluster setup for any number of attendees, plus `--check` (read-only status and attendee handout) and `--cleanup` |
+| `manifests/instructor/` | The pieces the setup script applies (inference gateway, Web Terminal operator and per-attendee terminals, shared OpenShift MCP Server, premium subscription placeholder, Open WebUI dashboard tiles, model image pre-pull) |
 | `manifests/mcp-server.yaml` | Per-project MCP server (reference only, not used in the current flow) |
 | `manifests/llamastack.yaml` | LlamaStack deployment (reference only, not used in the current flow) |
 | `images/` | Screenshots for the guide (`images/maas/` for the current flow) |
@@ -46,4 +48,11 @@ See [RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md](RHOAI-MODEL-DEPLOYMENT-WORKSHOP.md) for
 
 ## Instructor Setup
 
-Follow **Appendix A: Instructor Setup Checklist** in the workshop guide. The [RHOAI Toolkit](https://github.com/gymnatics/RHOAI-Toolkit) can install the cluster; install it with RHCL and MaaS enabled.
+Follow **[ENVIRONMENT-SETUP.md](ENVIRONMENT-SETUP.md)**. Order the cluster on the Red Hat Demo Platform, then run one script from your laptop:
+
+```bash
+bash manifests/instructor/setup-workshop.sh --check        # read-only: what's ready, what's missing
+bash manifests/instructor/setup-workshop.sh --users 20     # set up for user1..user20
+```
+
+It works for any number of attendees, as long as the cluster can get one GPU node per attendee. It reuses the platform scripts from [rhoai-field-source-setup-guide](https://github.com/jingggg-wenn/rhoai-field-source-setup-guide), pinned and checksum-verified. **Appendix A** of the workshop guide explains each piece and how to do it by hand.

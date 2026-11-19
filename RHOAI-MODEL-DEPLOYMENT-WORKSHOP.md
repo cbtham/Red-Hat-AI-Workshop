@@ -93,7 +93,7 @@ You should now see the **OpenShift AI Dashboard** with a left sidebar showing **
 
 > Can't log in? Double-check your username and password with your instructor.
 
-> **Tip:** To switch between the **OpenShift AI Dashboard** and the **OpenShift Console** (needed later for the Web Terminal), click the **grid icon** (3x3 squares) in the top-right corner, then select **OpenShift Console** or **Red Hat OpenShift AI**. You can also edit the URL: replace `rh-ai.apps` with `console-openshift-console.apps` (or the other way round).
+> **Tip:** To switch between the **OpenShift AI Dashboard** and the **OpenShift Console** (needed later for the Web Terminal), click the **grid icon** (3x3 squares) in the top-right corner, then select **OpenShift Console** or **Red Hat OpenShift AI**. You can also use the OpenShift Console link your instructor gave you.
 
 ---
 
@@ -580,9 +580,12 @@ The Playground now calls your model through the MaaS gateway, with your subscrip
 Any OpenAI-compatible client can now use your model. In the Web Terminal (see Step 7.1), try:
 
 ```bash
-export MAAS_URL=https://maas.apps.<cluster-domain>
+export MAAS_URL=https://$(oc get gateway maas-default-gateway -n openshift-ingress -o jsonpath='{.spec.listeners[0].hostname}')
+echo $MAAS_URL
 export MAAS_KEY=<paste your sk-oai- key>
 ```
+
+The first command reads the MaaS address from the cluster, so you don't need to type your cluster's domain. `echo` should print something like `https://maas.apps.<cluster-domain>`.
 
 List the models your key can use:
 
@@ -687,10 +690,10 @@ Open the URL in a new browser tab. Authentication is disabled for the workshop, 
 First, get the MaaS base URL for Open WebUI. It's the MaaS endpoint from Step 6.1 plus `/v1`:
 
 ```bash
-echo "https://maas.$(oc get route open-webui -n $NAMESPACE -o jsonpath='{.spec.host}' | cut -d. -f2-)/v1"
+echo "https://$(oc get gateway maas-default-gateway -n openshift-ingress -o jsonpath='{.spec.listeners[0].hostname}')/v1"
 ```
 
-It looks like `https://maas.apps.<cluster-domain>/v1`.
+It looks like `https://maas.apps.<cluster-domain>/v1`, with your workshop cluster's domain filled in. Copy the whole line.
 
 Now, in Open WebUI:
 
@@ -701,7 +704,7 @@ Now, in Open WebUI:
 
    | Field | Value |
    |-------|-------|
-   | **URL** | `https://maas.apps.<cluster-domain>/v1` |
+   | **URL** | the URL the command above printed (it ends in `/v1`) |
    | **Auth** | `Bearer`, then paste your **`sk-oai-` API key** from Step 6.2 into the field next to it |
    | **Model IDs** | leave empty (Open WebUI lists every model your key can use) |
 
@@ -794,7 +797,7 @@ You've completed the hands-on part of the workshop.
 5. In the dashboard, show **Observe & monitor** for per-deployment metrics
 6. Discuss how these metrics help with capacity planning, and how MaaS token limits protect shared GPUs
 
-> These dashboards need user workload monitoring and the Grafana or console dashboards to be deployed. See [Appendix A](#appendix-a-instructor-setup-checklist).
+> The instructor setup turns on user workload monitoring and GPU metrics, so step 5 works on any workshop cluster. The GPU and vLLM dashboards in steps 3 and 4 are added separately. See [Appendix A](#appendix-a-instructor-setup-checklist), step 9.
 
 ---
 
@@ -904,11 +907,13 @@ Raise your hand! The instructors are here to help.
 
 | Item | Value |
 |------|-------|
-| RHOAI Dashboard | `https://rh-ai.apps.<cluster-domain>` |
+| RHOAI Dashboard | The link your instructor gave you |
 | MaaS endpoint (for apps) | `https://maas.apps.<cluster-domain>/v1` |
 | Model ID through MaaS | `publishers/userN/models/gemma-4-e4b-it` |
 | Model resource name | `gemma-4-e4b-it` |
 | Open WebUI display name | `redhataigemma4` |
+
+`<cluster-domain>` is different for every workshop, so don't copy it from this guide. The commands below print the real addresses for your cluster.
 
 ## Key Terminal Commands
 
@@ -936,7 +941,7 @@ sed "s/\${NAMESPACE}/$NAMESPACE/g" manifests/open-webui.yaml | oc apply -f -
 echo "https://$(oc get route open-webui -n $NAMESPACE -o jsonpath='{.spec.host}')"
 
 # MaaS base URL for Open WebUI
-echo "https://maas.$(oc get route open-webui -n $NAMESPACE -o jsonpath='{.spec.host}' | cut -d. -f2-)/v1"
+echo "https://$(oc get gateway maas-default-gateway -n openshift-ingress -o jsonpath='{.spec.listeners[0].hostname}')/v1"
 
 # All of the above in one go (Open WebUI URL, MaaS base URL, model ID)
 ./show-urls.sh
@@ -954,6 +959,15 @@ oc delete project $NAMESPACE
 
 This section is for workshop instructors.
 
+> **Setting up a cluster? Follow [ENVIRONMENT-SETUP.md](ENVIRONMENT-SETUP.md).** You order an RHDP environment and run one script, which does every step below for any number of attendees:
+>
+> ```bash
+> bash manifests/instructor/setup-workshop.sh --check        # read-only: what's ready, what's missing
+> bash manifests/instructor/setup-workshop.sh --users <N>    # set up for user1..userN
+> ```
+>
+> This appendix explains what each piece is, why the workshop needs it, and how to do or check it by hand.
+
 > **GPU capacity:** every participant deploys their own model on **one GPU**. For N participants you need N free GPUs, plus spare capacity if you want a demo model. Check before the workshop:
 >
 > ```bash
@@ -964,13 +978,11 @@ This section is for workshop instructors.
 
 ## 1. Install RHOAI 3.5 with Models-as-a-Service
 
-Install RHOAI 3.5.x **with** MaaS and its dependency, Red Hat Connectivity Link (RHCL), which provides the API-key auth and the token rate limiting. With the [RHOAI Toolkit](https://github.com/gymnatics/RHOAI-Toolkit), run the installer **without** `--skip-rhcl` and `--skip-maas`:
+The workshop needs RHOAI 3.5.x **with** MaaS and its dependency, Red Hat Connectivity Link (RHCL), which provides the API-key auth and the token rate limiting.
 
-```bash
-./scripts/install-rhoai-35.sh --setup-users --num-users <N> --user-password <password>
-```
+On an RHDP environment, the setup script's platform step does this. It runs `field-source-enable-all-features-35.sh` and `field-source-setup-maas-35.sh` from [rhoai-field-source-setup-guide](https://github.com/jingggg-wenn/rhoai-field-source-setup-guide). On another cluster, install it any way you like, for example with the [RHOAI Toolkit](https://github.com/gymnatics/RHOAI-Toolkit) installer, run **without** `--skip-rhcl` and `--skip-maas`.
 
-See the [RHOAI 3.5 Installation Guide](https://github.com/gymnatics/RHOAI-Toolkit/blob/main/docs/guides/rhoai-3.5/RHOAI-35-MANUAL-INSTALLATION-GUIDE.md) for details. Then check that MaaS is up:
+Then check that MaaS is up:
 
 ```bash
 oc get gateway -n openshift-ingress                 # expect maas-default-gateway
@@ -980,10 +992,10 @@ oc get namespace models-as-a-service
 
 ## 2. Users and groups
 
-Add every workshop user to the **`rhods-admins`** group. Attendees need it to open **Settings > MaaS governance** and create their own subscription:
+Add every workshop user to the **`rhods-admins`** group. Attendees need it to open **Settings > MaaS governance** and create their own subscription. The setup script's first step does this with `setup_workshop_users_rbac.sh`, which also gives each user `cluster-admin`. By hand:
 
 ```bash
-oc adm groups add-users rhods-admins user1 user2 user3   # …up to userN
+for i in $(seq 1 <N>); do oc adm groups add-users rhods-admins user$i; done
 ```
 
 > All attendees share `rhods-admins`, so everyone can see everyone's subscriptions and projects. The guide tells them to always pick `basic subscription userN` and their own project.
@@ -1008,15 +1020,17 @@ In Part 3, attendees deploy with **Publish as MaaS** unchecked. KServe then rout
 
 ```bash
 export APPS_DOMAIN=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
-sed "s/\${APPS_DOMAIN}/$APPS_DOMAIN/g" manifests/instructor/inference-gateway.yaml | oc apply -f -
+export CERT_SECRET=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.spec.defaultCertificate.name}')
+sed -e "s/\${APPS_DOMAIN}/$APPS_DOMAIN/g" -e "s/\${CERT_SECRET}/${CERT_SECRET:-router-certs-default}/g" \
+  manifests/instructor/inference-gateway.yaml | oc apply -f -
 oc get gateway openshift-ai-inference -n openshift-ingress
 ```
 
-If your wildcard certificate secret isn't called `cert-manager-ingress-cert`, change `certificateRefs` in the manifest first.
+Both values are read from the cluster: its apps domain and the certificate its routes already use.
 
 ## 4. GPU hardware profile
 
-Create a hardware profile named **`gpu-profile`** (for example with the toolkit's `lib/manifests/rhoai/hardware-profile-gpu.yaml`) with 1 GPU, at least 12 GiB memory, and the GPU node selector and tolerations:
+Create a hardware profile named **`gpu-profile`** with 1 GPU, at least 12 GiB memory, and the GPU node selector and tolerations. The setup script's GPU step creates it with `gpu_machineset_hardwareprofiles.sh`, together with a `g6.2xlarge` (NVIDIA L4) GPU MachineSet, and then scales that MachineSet to one node per attendee. Check it:
 
 ```bash
 oc get hardwareprofile gpu-profile -n redhat-ods-applications
@@ -1039,10 +1053,10 @@ oc apply -f manifests/instructor/web-terminal-subscription.yaml
 Optional: start a terminal for each attendee ahead of time, so **`>_`** opens straight to a prompt in Step 7.1 with no **Initialize terminal** step. Attendees are cluster admins, so their terminals live in `openshift-terminal`. The script creates each one as that attendee (impersonation), because the console finds a terminal by its creator's user ID. It also raises the idle timeout from 15m to 4h:
 
 ```bash
-bash manifests/instructor/web-terminals.sh 20
+bash manifests/instructor/web-terminals.sh <N>
 ```
 
-A user ID exists only after the attendee's first login, so the script skips anyone who hasn't logged in yet. Run it again once everyone has logged in (Part 1). Attendees who already have a terminal are left alone. Remove the terminals after the workshop with `bash manifests/instructor/web-terminals.sh 20 delete`.
+A user ID exists only after the attendee's first login, so the script skips anyone who hasn't logged in yet. Run it again once everyone has logged in (Part 1). Attendees who already have a terminal are left alone. Remove the terminals after the workshop with `bash manifests/instructor/web-terminals.sh <N> delete`.
 
 ## 6. Shared OpenShift MCP Server
 
@@ -1060,12 +1074,12 @@ If the ConfigMap `gen-ai-aa-mcp-servers` in `redhat-ods-applications` already ha
 One **Open WebUI** tile per attendee, so they can open their Open WebUI from the dashboard in Step 7.5. Each tile links to `https://open-webui-userN.<apps domain>`. Its description starts with `userN:`, because every tile is visible to every user. Pass the number of attendees:
 
 ```bash
-bash manifests/instructor/open-webui-tiles.sh 20
+bash manifests/instructor/open-webui-tiles.sh <N>
 ```
 
 This is an instructor step, not an attendee step. The tiles live in the shared `redhat-ods-applications` namespace and change the dashboard for everyone. Even though attendees have cluster-admin, one wrong edit there would break the dashboard for the whole room.
 
-The dashboard shows the tiles within about 1 to 2 minutes. A tile's link works once that attendee has finished Step 7.4. Remove them after the workshop with `bash manifests/instructor/open-webui-tiles.sh 20 delete`.
+The dashboard shows the tiles within about 1 to 2 minutes. A tile's link works once that attendee has finished Step 7.4. Remove them after the workshop with `bash manifests/instructor/open-webui-tiles.sh <N> delete`.
 
 This follows Red Hat's [Adding an application to the dashboard](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/managing_openshift_ai/managing-applications-that-show-in-the-dashboard). It uses an `OdhApplication` with `spec.enable.validationConfigMap`, and the script creates that ConfigMap with `validation_result: "true"`, so attendees don't need to click **Enable** on the Explore page. The script sets `spec.endpoint` instead of `route`/`routeNamespace`: in RHOAI 3.5.3 the dashboard looks up `route` in its own namespace first. The default `spec.dashboardConfig.enablement: true` is required.
 
@@ -1080,35 +1094,29 @@ oc get maassubscription -n models-as-a-service
 
 ## 8. Pre-pull the model image
 
-The gemma-4-E4B-it image is about 16 GB and took about 13 minutes on its first pull in testing. Deploy the model once on **each** GPU node before the workshop (or use an image pre-puller DaemonSet) so the image is cached:
+The gemma-4-E4B-it image is about 16 GB and took about 13 minutes on its first pull in testing. [`manifests/instructor/model-prepull.yaml`](manifests/instructor/model-prepull.yaml) is a DaemonSet that pulls it, and the vLLM runtime image, onto every GPU node (including ones that join later) and keeps them cached. Its pods use no GPU. The setup script applies it; by hand:
 
+```bash
+T=$(oc get llminferenceserviceconfig -n redhat-ods-applications -o name | grep 'kserve-config-llm-template$' | head -1)
+export VLLM_IMAGE=$(oc get -n redhat-ods-applications "$T" -o jsonpath='{.spec.template.containers[?(@.name=="main")].image}')
+export MODEL_IMAGE=registry.redhat.io/rhai/modelcar-redhatai-gemma-4-e4b-it:3.0
+sed -e "s|\${VLLM_IMAGE}|$VLLM_IMAGE|g" -e "s|\${MODEL_IMAGE}|$MODEL_IMAGE|g" \
+  manifests/instructor/model-prepull.yaml | oc apply -f -
+oc get pods -n workshop-prepull -o wide     # Running = both images cached on that node
 ```
-oci://registry.redhat.io/rhai/modelcar-redhatai-gemma-4-e4b-it:3.0
-```
+
+Remove it after the workshop with `oc delete project workshop-prepull`.
 
 ## 9. Observability (optional Part 8)
 
-Enable user workload monitoring and deploy the vLLM and DCGM dashboards (the toolkit's workshop setup does this).
+The setup script's platform step turns on user workload monitoring and the GPU Operator's DCGM metrics, so per-deployment metrics in the dashboard work. The console dashboards are not installed:
+
+- **GPU dashboard:** follow NVIDIA's [Enabling the GPU Monitoring Dashboard](https://docs.nvidia.com/datacenter/cloud-native/openshift/latest/enable-gpu-monitoring-dashboard.html)
+- **vLLM dashboard:** not included. Skip that step of Part 8, or add your own before the workshop
 
 ## 10. Dry run
 
-As a test user, walk through Parts 3 to 7 once:
-
-- Deploy (non-MaaS) and check Playground chat, MCP and RAG
-- Publish as MaaS, create a subscription and a key, and re-add the Playground through MaaS
-- Deploy Open WebUI, connect it with the key, chat and RAG
-
-Then clean up the test user, in this order:
-
-1. **API keys:** signed in as the test user, delete them on **Gen AI studio > API keys** (kebab menu ⋮). Do this first: a key that is left behind becomes usable again if an attendee later creates a subscription with the same name
-2. **Subscription and its authorization policy:**
-
-   ```bash
-   oc delete maassubscription basic-subscription-user1 -n models-as-a-service
-   oc delete maasauthpolicy basic-subscription-user1-policy -n models-as-a-service --ignore-not-found
-   ```
-
-3. **Project** (model, Playground and Open WebUI): `oc delete project user1`
+Walk through the guide once as `user1`, then clean `user1` up so the real attendee starts fresh. The steps and the cleanup order are in [ENVIRONMENT-SETUP.md, Step 4](ENVIRONMENT-SETUP.md#step-4-dry-run).
 
 ## Known limitations (RHOAI 3.5.3)
 
@@ -1118,14 +1126,15 @@ Then clean up the test user, in this order:
 
 ## Workshop Credentials Template
 
-Provide each participant with:
+Provide each participant with the values below. `setup-workshop.sh --check` prints them for your cluster as the **attendee handout**:
 
 | Field | Value |
 |-------|-------|
-| OpenShift AI Dashboard URL | `https://rh-ai.apps.<cluster-domain>` |
-| Login provider | `rhbk` (or the provider configured on your cluster) |
+| OpenShift AI Dashboard URL | From the handout (different for every cluster) |
+| OpenShift Console URL | From the handout |
+| Login provider | From the handout (`rhbk` on RHDP) |
 | Username | `userN` |
-| Password | (your chosen password) |
+| Password | The user password on your RHDP service page |
 | User number (for project) | `N` |
 
 ---

@@ -1,0 +1,72 @@
+# Pre-pull the workshop images onto every GPU node
+#
+# The model image (~16 GB) and the vLLM runtime image take 10+ minutes to pull
+# the first time. This DaemonSet starts one tiny pod on each GPU node (now and
+# when new GPU nodes join), which pulls both images and then just sleeps, so the
+# images stay cached until the workshop starts.
+#
+# The pods request no GPU and almost no CPU or memory, so they don't take
+# capacity away from the attendees' models. Delete the namespace after the
+# workshop: oc delete project workshop-prepull
+#
+# setup-workshop.sh applies this for you. To apply it by hand (cluster-admin):
+#   T=$(oc get llminferenceserviceconfig -n redhat-ods-applications -o name | grep 'kserve-config-llm-template$' | head -1)
+#   export VLLM_IMAGE=$(oc get -n redhat-ods-applications "$T" -o jsonpath='{.spec.template.containers[?(@.name=="main")].image}')
+#   export MODEL_IMAGE=registry.redhat.io/rhai/modelcar-redhatai-gemma-4-e4b-it:3.0
+#   sed -e "s|\${VLLM_IMAGE}|$VLLM_IMAGE|g" -e "s|\${MODEL_IMAGE}|$MODEL_IMAGE|g" \
+#     manifests/instructor/model-prepull.yaml | oc apply -f -
+#   oc get pods -n workshop-prepull -o wide     # Running = both images cached on that node
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-prepull
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: model-prepull
+  namespace: workshop-prepull
+  labels:
+    app: model-prepull
+spec:
+  selector:
+    matchLabels:
+      app: model-prepull
+  template:
+    metadata:
+      labels:
+        app: model-prepull
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: hold-vllm
+          image: ${VLLM_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests: {cpu: 1m, memory: 8Mi}
+            limits: {memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+        - name: hold-model
+          image: ${MODEL_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests: {cpu: 1m, memory: 8Mi}
+            limits: {memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
